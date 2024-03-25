@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Test::More tests => 13;
+use lib '.';
+use Num;
+
+my $d = Num->new('_3');
+ok($d->str eq '-3', "negative numbers");
+my $e = Num->new('_4');
+ok($d->add($e)->str eq '-7', "add two negative numbers");
+
+my $a = Num->new(4);
+my $b = Num->new(5);
+
+ok($a->add($d)->str eq '1', "add positive and negative numbers");
+
+ok($a->compare($b) == -1, "compare less");
+ok($b->compare($a) == 1, "compare greater");
+ok($a->compare($a) == 0, "compare equal");
+ok($a->add($b)->str eq '9', "add two positive");
+ok($a->times($b)->str eq '20', "multiply two positive");
+ok($a->negate->str eq '-4', "negate");
+ok($a->minus($b)->str eq '-1', "subtract two positive");
+ok($a->minus($e)->str eq '8', "subtract negative from positive");
+ok($e->minus($a)->str eq '-8', "subtract positive from negative");
+
+my $c = Num->new({ sign => 1, digits => [ 4, 2, 9 ]});
+ok($c->str eq '-924', "constructor with hashref rather than string");

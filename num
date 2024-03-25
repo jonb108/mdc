@@ -1,0 +1,153 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use lib '.';
+use Num;
+my @stack;
+my %register;   # keys a-z
+while (my $line = <STDIN>) {
+    chomp $line;
+    CMD:
+    while ($line) {
+        if ($line !~ s{\A ([?*sqpPC +^!-]|_?(?:\d+)?(?:[.]\d+)?|[RS][a-zA-Z])}{}xms) {
+            print "Unknown cmd in $line\n";
+            exit;
+        }
+        my $cmd = $1;
+        if ($cmd eq ' ') {
+            next;
+        }
+        if ($cmd eq 'q') {
+            exit;
+        }
+        elsif ($cmd eq '?') {
+            print <<'EOH';
+? help
+q quit
+C clear stack
+p print top
+P print stack from top
+s swap two
++ pop two, add them and push result
+* pop two, multiply them and push result
+- pop two, subtract top from next and push result
+! pop, push factorial of it
+^ pop two, raise first to the second power and push result
+Sx pop, store in register x (lower or upper case letter)
+Rx push register x
+EOH
+        }
+        elsif ($cmd eq 'C') {
+            @stack = ();
+        }
+        elsif ($cmd =~ m{\A _?(?:\d+)?(?:[.]\d+)? \z}xms) {
+            push @stack, Num->new($cmd);
+        }
+        elsif ($cmd eq 'p') {
+            if (!@stack) {
+                print "Empty stack\n";
+            }
+            else {
+                $stack[-1]->show;
+            }
+        }
+        elsif ($cmd eq 'P') {
+            for my $n (reverse @stack) {
+                $n->show;
+            }
+        }
+        elsif ($cmd eq '!') {
+            if (!@stack) {
+                print "Empty stack\n";
+            }
+            my $num = pop @stack;
+            if ($num->sign) {
+                print "Cannot take factorial of a negative number.\n";
+                push @stack, $num;
+                next CMD;
+            }
+            my $one = Num->new('1');
+            my $result = $num;
+            while ($num->compare($one) == 1) {
+                $num = $num->minus($one);
+                $result = $result->times($num);
+            }
+            push @stack, $result;
+        }
+        elsif ($cmd eq '^') {
+            if (@stack < 2) {
+                print "Stack does not have two elements.\n";
+            }
+            else {
+                my $power = pop @stack;
+                my $base  = pop @stack;
+                my $zero  = Num->new('0');
+                my $one   = Num->new('1');
+                if ($power->compare($zero) == -1) {
+                    print "Cannot have a negative power\n";
+                    push @stack, $base, $power;
+                    next CMD;
+                }
+                my $result = $one;
+                while ($power->compare($zero) == 1) {
+                    $power = $power->minus($one);
+                    $result = $result->times($base);
+                }
+                push @stack, $result;
+            }
+        }
+        elsif ($cmd eq '*') {
+            if (@stack < 2) {
+                print "Stack does not have two elements.\n";
+            }
+            else {
+                push @stack, (pop @stack)->times(pop @stack);
+            }
+        }
+        elsif ($cmd eq '+') {
+            if (@stack < 2) {
+                print "Stack does not have two elements.\n";
+            }
+            else {
+                push @stack, (pop @stack)->add(pop @stack);
+            }
+        }
+        elsif ($cmd eq '-') {
+            if (@stack < 2) {
+                print "Stack does not have two elements.\n";
+            }
+            else {
+                push @stack, (pop @stack)->minus(pop @stack);
+            }
+        }
+        elsif ($cmd eq 's') {
+            if (@stack < 2) {
+                print "Stack does not have two elements.\n";
+            }
+            else {
+                my $a = pop @stack;
+                my $b = pop @stack;
+                push @stack, $a, $b;
+            }
+            
+        }
+        elsif ($cmd =~ m{\A S (.) \z}xms) {
+            my $reg = $1;
+            if (!@stack) {
+                print "Empty stack\n";
+            }
+            else {
+                $register{$reg} = pop @stack;
+            }
+        }
+        elsif ($cmd =~ m{\A R (.) \z}xms) {
+            my $reg = $1;
+            if (defined $register{$reg}) {
+                push @stack, $register{$reg};
+            }
+            else {
+                print "Register $reg is empty.\n";
+            }
+        }
+    }
+}
