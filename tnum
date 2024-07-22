@@ -5,15 +5,19 @@ use Test::More tests => 13;
 use lib '.';
 use Num;
 
-my $d = Num->new('_3');
-ok($d->str eq '-3', "negative numbers");
-my $e = Num->new('_4');
-ok($d->add($e)->str eq '-7', "add two negative numbers");
+my $d = Num->new('_3.451');
+ok($d->str eq '-3.451', "negative numbers");
+my $e = Num->new('_4.9');
+ok($d->add($e)->str eq '-8.351', "add two negative numbers");
 
 my $a = Num->new(4);
 my $b = Num->new(5);
+my $x = Num->new(5);
+my $y = Num->new(5.146);
 
-ok($a->add($d)->str eq '1', "add positive and negative numbers");
+print $x->compare($y); exit;
+
+ok($a->add($d)->str eq '.549', "add positive and negative numbers");
 
 ok($a->compare($b) == -1, "compare less");
 ok($b->compare($a) == 1, "compare greater");

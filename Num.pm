@@ -154,7 +154,6 @@ sub negate {
 # a minus b
 #  45
 #-196
-#  09
 sub minus {
     my ($a, $b) = @_;
     if ($a->sign && $b->sign) {
@@ -196,9 +195,9 @@ sub minus {
             --$a_digs[$i+1];
         }
     } 
-    # ???
+    # ??
     return Num->new({
-        decimals => 0,
+        decimals => [ ],
         digits => \@result,
         sign   => 0,
     });
@@ -223,7 +222,7 @@ sub compare {
     }
     my $na = $a->ndigits;
     my $nb = $b->ndigits;
-    if ($na > $nb) {
+    if ($nb && $na > $nb) {
         # 99 4
         return 1;
     }
@@ -237,6 +236,29 @@ sub compare {
     while (@a_digs) {
         my $ad = pop @a_digs;
         my $bd = pop @b_digs;
+        if (!$bd) {
+            return 1;
+        }
+        if ($ad > $bd) {
+            return 1;
+        }
+        if ($ad < $bd) {
+            return -1;
+        }
+    }
+    # 49.1
+    # 49.2
+    my @a_decs = @{$a->decimals};
+    my @b_decs = @{$b->decimals};
+    while (@a_decs || @b_decs) {
+        my $ad = pop @a_decs;
+        my $bd = pop @b_decs;
+        if (!$bd) {
+            return 1;
+        }
+        if (!$ad) {
+            return -1;
+        }
         if ($ad > $bd) {
             return 1;
         }
@@ -300,8 +322,12 @@ sub times {
 
 sub str {
     my ($self) = @_;
-    return (($self->sign? '-': '')
-         . join('', reverse @{$self->digits}));
+    my $rc = $self->sign? '-': '';
+    $rc .= join '', reverse @{$self->digits};
+    if (@{$self->decimals}) {
+        $rc .= '.' . join '', @{$self->decimals};
+    }
+    return $rc;
 }
 
 sub show {

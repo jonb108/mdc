@@ -1,0 +1,290 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+use lib '.';
+use BigInteger;
+
+my @stack;
+my %register;
+
+my $fname = 'dc-stack.txt';
+
+if (open my $in, '<', $fname) {
+    my $line = <$in>;
+    if ($line) {
+        chomp $line;
+        # STACK
+        @stack = map { BigInteger->new($_) }
+                 split ' ', $line;
+    }
+    # REGISTERS
+    $line = <$in>;
+    if ($line) {
+        chomp $line;
+        my @terms = split ' ', $line;
+        while (my $k = shift @terms) {
+            my $v = BigInteger->new(shift @terms);
+            $register{$k} = $v;
+        }
+    }
+}
+
+LINE:
+while (my $line = <STDIN>) {
+    chomp $line;
+    $line =~ s{\A \s*|\s* \z}{}xmsg;
+    TOKEN:
+    while ($line) {
+        $line =~ s{\A
+                   \s*
+                   (
+                      [-]?\d+               # a number
+                    | [+\-*/!^pPAMqC?GRn<=>a] # a single char command
+                    | [sl][a-zA-Z]          # store/load register
+                    | .*                    # other
+                   )
+                  }{}xms;
+        my $token = $1;
+        if ($token =~ m{\A [-]?\d}xms) {
+            push @stack, BigInteger->new($token);
+        }
+        elsif ($token eq '=') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            push @stack, $x == $y? 1: 0;
+        }
+        elsif ($token eq '>') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            push @stack, $x > $y? $BigInteger::one: $BigInteger::zero;
+        }
+        elsif ($token eq '<') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            push @stack, $x < $y? $BigInteger::one: $BigInteger::zero;
+        }
+        elsif ($token =~ m{\A s([a-zA-Z]) \z}xms) {
+            my $reg = $1;
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            $register{$reg} = $x;
+        }
+        elsif ($token eq 'n') {
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            push @stack, $x->negate;
+        }
+        elsif ($token eq 'G') {
+            for my $reg (sort keys %register) {
+                print "$reg $register{$reg}\n";
+            }
+        }
+        elsif ($token eq 'R') {
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            if (! ($stack[-1] > $BigInteger::zero)) {
+                print "top of stack is not positive\n";
+                next TOKEN;
+            }
+            my $n = pop @stack;
+            # binary search with random 0, 1 to find a value???
+            # ??? need help here
+            my $x = int(join '', @{$n->{digits}});
+            my $r = int(rand($x))+1;
+            push @stack, BigInteger->new("$r");
+        }
+        elsif ($token =~ m{\A l([a-zA-Z]) \z}xms) {
+            my $reg = $1;
+            push @stack, $register{$reg} if exists $register{$reg};
+        }
+        elsif ($token eq 'r') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            push @stack, $x, $y;
+        }
+        elsif ($token eq '+') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            push @stack, $x + $y;
+        }
+        elsif ($token eq '-') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+#print "subtract $y from $x\n";
+            push @stack, $x - $y;
+        }
+        elsif ($token eq '^') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;  # num
+            my $y = pop @stack;  # exponent
+            my $count = $BigInteger::one;
+            my $pow = $x;
+            while ($count != $y) {
+                $pow *= $x;
+                $count += $BigInteger::one;
+            }
+            push @stack, $pow;
+        }
+        elsif ($token eq '/') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            if ($stack[-2] == $BigInteger::zero) {
+                print "cannot divide by zero!\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            #push @stack, $x / $y;
+            push @stack, $x->divide($y);
+        }
+        elsif ($token eq '*') {
+            if (@stack < 2) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $y = pop @stack;
+            push @stack, $x * $y;
+        }
+        elsif ($token eq 'p') {
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            print "$stack[-1]\n";
+        }
+        elsif ($token eq 'P') {
+            print "@stack\n";
+        }
+        elsif ($token eq 'C') {
+            @stack = ();
+        }
+        elsif ($token eq 'q') {
+            open my $out, '>', $fname 
+                or die "cannot open $fname: $!\n";
+            print {$out} "@stack\n";
+            while (my ($k, $v) = each %register) {
+                print {$out} "$k $v ";
+            }
+            print {$out} "\n";
+            close $out;
+            exit;
+        }
+        elsif ($token eq 'a') {
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            push @stack, (pop @stack)->abs;
+        }
+        elsif ($token eq 'A') {
+            my $sum = $BigInteger::zero;
+            while (@stack) {
+                $sum += pop @stack;
+            }
+            push @stack, $sum;
+        }
+        elsif ($token eq 'M') {
+            my $product = $BigInteger::one;
+            while (@stack) {
+                $product *= pop @stack;
+            }
+            push @stack, $product;
+        }
+        elsif ($token eq '?') {
+            print <<'EOH';
+? = show this help
+q = quit
+string of digits = push the number on the stack
+p = print the top of the stack. do not pop it
+P = print all the numbers on the stack, do not pop them
++ = pop two numbers, add them, push the sum
+- = pop two numbers, subtract the second from the first and push it
+* = pop two numbers, multiply them, push the product
+/ = pop two numbers, divide the first by the second
+                     push the result, then the remainder
+^ = pop two numbers, raise the first one popped
+    to the power of the second one popped
+    the second one must be positive
+! = pop a number which must be positive
+    push the factorial of that number
+A = pop all the numbers off the stack
+    adding them, push their sum
+M = pop all the numbers off the stack
+    multiplying them, push the product
+r = reverse the top two numbers on the stack
+C = clear the stack
+sX = pop one number from the stack
+     put it in register X (a-z A-Z)
+lX = push the value in register X (a-z A-Z)
+     onto the stack if it exists
+G = print all registers
+R = pop a number which must be positive????
+    push a random integer from 1 up to that number?????
+a = pop a number, push its absolute value
+n = pop a number, push its negative
+> = pop two numbers, push 1 if 1st is > 2nd else 0
+< = pop two numbers, push 1 if 1st is < 2nd else 0
+= = pop two numbers, push 1 if 1st is == 2nd else 0
+EOH
+        }
+        elsif ($token eq '!') {
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            my $x = pop @stack;
+            my $result = $BigInteger::one;
+            my $fac = $BigInteger::one;
+            # ??go up not down - need comparison??
+            $x = "$x";
+            while (--$x) {
+                $fac += $BigInteger::one;
+                $result *= $fac;
+            }
+            push @stack, $result;
+        }
+        else {
+            print "illegal token: $token\n";
+            next LINE;
+        }
+    }
+}
