@@ -389,16 +389,13 @@ sub divide {
             last XX;
         }
     }
-#print "1t = $t\n";
     # so $c is <= $t
     OUTER:
     while (1) {
-#print "2t = $t\n";
         LOOP:
         for my $i (1 .. 10) {
             if ($multiples[$i] > $t) {
                 push @result, $i-1;
-#print "result @result\n";
                 $t -= $multiples[$i-1];
                 last LOOP;
             }
@@ -420,8 +417,6 @@ sub divide {
             last OUTER;
         }
     }
-#print "result @result\n";
-#print "remainder $t\n";
     return BigInteger->new(join '', @result), $t;
 }
 

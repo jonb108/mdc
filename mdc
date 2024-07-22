@@ -173,6 +173,9 @@ while (my $line = <STDIN>) {
             my $x = pop @stack;
             my $y = pop @stack;
             #push @stack, $x / $y;
+            # the above did not work?
+            # look at 'perldoc overload'
+            # context?
             push @stack, $x->divide($y);
         }
         elsif ($token eq '*') {
