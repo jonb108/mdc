@@ -60,7 +60,7 @@ around BUILDARGS => sub {
     }
     if (@args == 1 && !ref $args[0]) {
         my $arg = $args[0];
-        $arg =~ s{\A 0+([1-9])}{$1}xms;     # trim leading zeroes
+        $arg =~ s{\A 0+([0-9])}{$1}xms;     # trim leading zeroes
         croak "illegal number: $arg"
             if $arg !~ m{\A [-]?\d+ \z}xms;
         my $sign = '+';
@@ -361,10 +361,17 @@ sub negate {
 #
 # ignore the signs of $self and $b for now
 #
+# this was developed in a hacky way
+# so not easy to follow.
+# the tests prove it correct.
+# NOT
+# 2 2048 /P
+#
 sub divide {
     my ($self, $b) = @_;
     die "$b must be a BigInteger!" unless ref $b eq 'BigInteger';
     die "cannot divide by zero!" if $b == $zero;
+    # signs???
     # first ...
     if ($self < $b) {
         return ($zero, $self);
@@ -372,7 +379,6 @@ sub divide {
     # first - create the 1-9 multiples of $b (or absolute value of $b).
     my @multiples;
     my $c = $b->abs;
-    my $n = @{$c->digits};
     $multiples[1] = $c;
     for my $i (2 .. 10) {
         $multiples[$i] = $multiples[$i-1] + $c;
@@ -381,12 +387,12 @@ sub divide {
     my @d = @{$self->digits};
     my @w;
     my $t;
-    XX:
+    INIT:
     while (@d) {
         push @w, shift @d;
         $t = BigInteger->new(join '', @w);
         if ($c <= $t) {
-            last XX;
+            last INIT;
         }
     }
     # so $c is <= $t
@@ -404,7 +410,6 @@ sub divide {
             last OUTER;
         }
         @w = @{$t->digits};
-        YY:
         while (@d) {
             push @w, shift @d;
             $t = BigInteger->new(join '', @w);

@@ -8,7 +8,7 @@ use BigInteger;
 my @stack;
 my %register;
 
-my $fname = 'dc-stack.txt';
+my $fname = 'mdc-stack.txt';
 
 if (open my $in, '<', $fname) {
     my $line = <$in>;
@@ -40,7 +40,7 @@ while (my $line = <STDIN>) {
                    \s*
                    (
                       [-]?\d+               # a number
-                    | [+\-*/!^pPAMqC?GRn<=>a] # a single char command
+                    | [+\-*/!^pPAMqCc?GRn<=>a] # a single char command
                     | [sl][a-zA-Z]          # store/load register
                     | .*                    # other
                    )
@@ -151,12 +151,12 @@ while (my $line = <STDIN>) {
                 print "stack underflow\n";
                 next TOKEN;
             }
-            my $x = pop @stack;  # num
-            my $y = pop @stack;  # exponent
+            my $exp  = pop @stack;
+            my $base = pop @stack;
             my $count = $BigInteger::one;
-            my $pow = $x;
-            while ($count != $y) {
-                $pow *= $x;
+            my $pow = $base;
+            while ($count != $exp) {
+                $pow *= $base;
                 $count += $BigInteger::one;
             }
             push @stack, $pow;
@@ -175,7 +175,7 @@ while (my $line = <STDIN>) {
             #push @stack, $x / $y;
             # the above did not work?
             # look at 'perldoc overload'
-            # context?
+            # list context?
             push @stack, $x->divide($y);
         }
         elsif ($token eq '*') {
@@ -199,6 +199,13 @@ while (my $line = <STDIN>) {
         }
         elsif ($token eq 'C') {
             @stack = ();
+        }
+        elsif ($token eq 'c') {
+            if (@stack < 1) {
+                print "stack underflow\n";
+                next TOKEN;
+            }
+            pop @stack;
         }
         elsif ($token eq 'q') {
             open my $out, '>', $fname 
@@ -233,10 +240,15 @@ while (my $line = <STDIN>) {
             push @stack, $product;
         }
         elsif ($token eq '?') {
-            print <<'EOH';
+            open my $less, '|-', '/usr/bin/less';
+            print {$less} <<'EOH';
+Within this help 'h' shows commands to peruse the help.
+q will quit and return.
+
 ? = show this help
 q = quit
 string of digits = push the number on the stack
+    can optionally precede the digits with a minus sign
 p = print the top of the stack. do not pop it
 P = print all the numbers on the stack, do not pop them
 + = pop two numbers, add them, push the sum
@@ -244,9 +256,9 @@ P = print all the numbers on the stack, do not pop them
 * = pop two numbers, multiply them, push the product
 / = pop two numbers, divide the first by the second
                      push the result, then the remainder
-^ = pop two numbers, raise the first one popped
-    to the power of the second one popped
-    the second one must be positive
+^ = pop two numbers, raise the second one popped
+    to the power of the first one popped
+    the first one must be positive
 ! = pop a number which must be positive
     push the factorial of that number
 A = pop all the numbers off the stack
@@ -255,6 +267,7 @@ M = pop all the numbers off the stack
     multiplying them, push the product
 r = reverse the top two numbers on the stack
 C = clear the stack
+c = pop one number from the stack
 sX = pop one number from the stack
      put it in register X (a-z A-Z)
 lX = push the value in register X (a-z A-Z)
@@ -268,6 +281,7 @@ n = pop a number, push its negative
 < = pop two numbers, push 1 if 1st is < 2nd else 0
 = = pop two numbers, push 1 if 1st is == 2nd else 0
 EOH
+            close $less;
         }
         elsif ($token eq '!') {
             if (@stack < 1) {

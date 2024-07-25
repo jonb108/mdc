@@ -81,15 +81,21 @@ ok(BigInteger->new(9)
 
 my $x = BigInteger->new(151);
 my $y = BigInteger->new(16);
-my ($div, $rem) = $x->divide($y);
-ok($div == BigInteger->new(9)
+my ($quo, $rem) = $x->divide($y);
+ok($quo == BigInteger->new(9)
 && $rem == BigInteger->new(7), 'divide 1');
 
 $x = BigInteger->new(15);
 $y = BigInteger->new(161);
-($div, $rem) = $x->divide($y);
-ok($div == BigInteger->new(0)
+($quo, $rem) = $x->divide($y);
+ok($quo == BigInteger->new(0)
 && $rem == BigInteger->new(15), 'divide 2');
+
+$x = BigInteger->new(2048);
+$y = BigInteger->new(2);
+($quo, $rem) = $x->divide($y);
+ok($quo == BigInteger->new(1024)
+&& $rem == BigInteger->new(0), 'divide 3');
 
 my $add_sub = <<'EOT';
  5 +  6 =  11
@@ -146,30 +152,32 @@ close $in;
 # do these two things many times.
 # the number of times they disagree should be zero
 #
-my $pow = 10**5;
-my $ntests = 100;
+my $pow = 10**6;
+my $ntests = 2000;
 my $nfail = 0;
-for (1 ... $ntests) {
+for my $nt (1 ... $ntests) {
     my $x = int(rand 2*$pow) - $pow;
     my $y = int(rand 2*$pow) - $pow;
-$x = abs($x);
-$y = abs($y);
     my $a = $x + $y;
     my $s = $x - $y;
     my $m = $x * $y;
-    my ($d, $r);
-    if ($y != 0) {
-        $d = int($x / $y);
-        $r = $x - $d*$y;
-    }
     my $bx = BigInteger->new($x);
     my $by = BigInteger->new($y);
     my $ba = $bx + $by;
     my $bs = $bx - $by;
     my $bm = $bx * $by;
-    my ($bd, $br);
+$x = abs($x);
+$y = abs($y);
+    my ($d, $r);
     if ($y != 0) {
-        ($bd, $br) = $bx->divide($by);
+        $d = int($x / $y);
+        $r = $x - $d*$y;
+    }
+$bx = BigInteger->new($x);
+$by = BigInteger->new($y);
+    my ($bq, $br);
+    if ($y != 0) {
+        ($bq, $br) = $bx->divide($by);
     }
     if ("$a" ne "$ba"
         ||
@@ -179,11 +187,11 @@ $y = abs($y);
         ||
         ($x <=> $y) != ($bx <=> $by)
         ||
-        ($y != 0 && ("$r" ne "$br" || "$d" ne "$bd"))
+        ($y != 0 && ("$r" ne "$br" || "$d" ne "$bq"))
     ) {
         print "$x, $y, add $a $ba, sub $s $bs, mul $m $bm\n";
         print "<=> ", ($x <=> $y), " ", ($bx <=> $by), "\n";
-        print "div rem $d $r $bd $br\n";
+        print "div rem $d $r $bq $br\n";
         <STDIN>;
         ++$nfail;
     }
