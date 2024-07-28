@@ -4,6 +4,7 @@ use warnings;
 use lib '.';
 use BigInteger;
 use Test::More;
+
 ok(BigInteger->new( 34)
  + BigInteger->new( 78) ==
    BigInteger->new(112), 'add two positives');
@@ -79,8 +80,6 @@ ok(BigInteger->new(9)
  - BigInteger->new(9) == 
    BigInteger->new(0), 'subtract equals');
 
-=comment 
-
 my $x = BigInteger->new(151);
 my $y = BigInteger->new(16);
 my ($quo, $rem) = $x->divide($y);
@@ -99,8 +98,6 @@ $y = BigInteger->new(2);
 ok($quo == BigInteger->new(1024)
 && $rem == BigInteger->new(0), 'divide 3');
 
-=cut
-
 # handle the different signs with division
 my $div = <<'EOD';
  39   5   7   4
@@ -109,8 +106,8 @@ my $div = <<'EOD';
 -39  -5   8   1  # 5-4
 
   5  39   0   5
- -5  39  -1  34
   5 -39   0   5
+ -5  39  -1  34
  -5 -39   1  34
 EOD
 open my $din, '<', \$div
@@ -123,14 +120,9 @@ while (my $line = <$din>) {
         next LINE;
     }
     my ($a, $b, $c, $d) = $line =~ m{([-]?\d+)}xmsg;
-    print "\n\ndividing $a by $b => $c rem $d???\n";
-    print $b*$c + $d, " = ", $a, "??\n";
-    <STDIN>;
-
     my $x = BigInteger->new($a);
     my $y = BigInteger->new($b);
     my ($quo, $rem) = $x->divide($y);
-print "$quo = $c and $rem = $d???\n"; <STDIN>;
     ok($quo == BigInteger->new($c)
     && $rem == BigInteger->new($d), "divide $a by $b");
 }
@@ -191,8 +183,8 @@ close $in;
 # do these two things many times.
 # the number of times they disagree should be zero
 #
-my $pow = 10**3;
-my $ntests = 100;
+my $pow = 10**4;
+my $ntests = 200;
 my $nfail = 0;
 for my $nt (1 ... $ntests) {
     my $x = int(rand 2*$pow) - $pow;
@@ -209,7 +201,7 @@ for my $nt (1 ... $ntests) {
     if ($y != 0) {
         ($bq, $br) = $bx->divide($by);
         if ($bq*$by + $br == $bx
-            && ($BigInteger::zero <= $br && $br <= $by->abs)
+            && ($BigInteger::zero <= $br && $br < $by->abs)
         ) {
             ; # ok
         }
