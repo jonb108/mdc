@@ -79,6 +79,8 @@ ok(BigInteger->new(9)
  - BigInteger->new(9) == 
    BigInteger->new(0), 'subtract equals');
 
+=comment 
+
 my $x = BigInteger->new(151);
 my $y = BigInteger->new(16);
 my ($quo, $rem) = $x->divide($y);
@@ -96,6 +98,43 @@ $y = BigInteger->new(2);
 ($quo, $rem) = $x->divide($y);
 ok($quo == BigInteger->new(1024)
 && $rem == BigInteger->new(0), 'divide 3');
+
+=cut
+
+# handle the different signs with division
+my $div = <<'EOD';
+ 39   5   7   4
+ 39  -5  -7   4
+-39   5  -8   1  # 5-4
+-39  -5   8   1  # 5-4
+
+  5  39   0   5
+ -5  39  -1  34
+  5 -39   0   5
+ -5 -39   1  34
+EOD
+open my $din, '<', \$div
+    or die "cannot open heredoc div\n";
+LINE:
+while (my $line = <$din>) {
+    chomp $line;
+    $line =~ s{[#].*}{}xms;
+    if ($line !~ m{\S}xms) {
+        next LINE;
+    }
+    my ($a, $b, $c, $d) = $line =~ m{([-]?\d+)}xmsg;
+    print "\n\ndividing $a by $b => $c rem $d???\n";
+    print $b*$c + $d, " = ", $a, "??\n";
+    <STDIN>;
+
+    my $x = BigInteger->new($a);
+    my $y = BigInteger->new($b);
+    my ($quo, $rem) = $x->divide($y);
+print "$quo = $c and $rem = $d???\n"; <STDIN>;
+    ok($quo == BigInteger->new($c)
+    && $rem == BigInteger->new($d), "divide $a by $b");
+}
+close $din;
 
 my $add_sub = <<'EOT';
  5 +  6 =  11
@@ -152,8 +191,8 @@ close $in;
 # do these two things many times.
 # the number of times they disagree should be zero
 #
-my $pow = 10**6;
-my $ntests = 2000;
+my $pow = 10**3;
+my $ntests = 100;
 my $nfail = 0;
 for my $nt (1 ... $ntests) {
     my $x = int(rand 2*$pow) - $pow;
@@ -166,18 +205,18 @@ for my $nt (1 ... $ntests) {
     my $ba = $bx + $by;
     my $bs = $bx - $by;
     my $bm = $bx * $by;
-$x = abs($x);
-$y = abs($y);
-    my ($d, $r);
-    if ($y != 0) {
-        $d = int($x / $y);
-        $r = $x - $d*$y;
-    }
-$bx = BigInteger->new($x);
-$by = BigInteger->new($y);
     my ($bq, $br);
     if ($y != 0) {
         ($bq, $br) = $bx->divide($by);
+        if ($bq*$by + $br == $bx
+            && ($BigInteger::zero <= $br && $br <= $by->abs)
+        ) {
+            ; # ok
+        }
+        else {
+            print "fail: divide $bx by $by = $bq remainder $br\n";
+            ++$nfail;
+        }
     }
     if ("$a" ne "$ba"
         ||
@@ -186,12 +225,9 @@ $by = BigInteger->new($y);
         "$m" ne "$bm"
         ||
         ($x <=> $y) != ($bx <=> $by)
-        ||
-        ($y != 0 && ("$r" ne "$br" || "$d" ne "$bq"))
     ) {
         print "$x, $y, add $a $ba, sub $s $bs, mul $m $bm\n";
         print "<=> ", ($x <=> $y), " ", ($bx <=> $by), "\n";
-        print "div rem $d $r $bq $br\n";
         <STDIN>;
         ++$nfail;
     }

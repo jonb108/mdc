@@ -18,6 +18,7 @@ use Moo;
 use Carp qw/
     croak
 /;
+$Carp::Verbose = 1;
 
 use overload 
     '+'   => 'plus',
@@ -235,7 +236,7 @@ sub negative {
 #
 sub subtract {
     my ($self, $b) = @_;
-    die "$b must be a BigInteger!" unless ref $b eq 'BigInteger';
+    croak "$b must be a BigInteger!" unless ref $b eq 'BigInteger';
 
     if ($self->positive && $b->negative) {
         # 9 - -8 = 17
@@ -364,18 +365,55 @@ sub negate {
 # this was developed in a hacky way
 # so not easy to follow.
 # the tests prove it correct.
-# NOT
-# 2 2048 /P
 #
 sub divide {
     my ($self, $b) = @_;
     die "$b must be a BigInteger!" unless ref $b eq 'BigInteger';
     die "cannot divide by zero!" if $b == $zero;
-    # signs???
-    # first ...
-    if ($self < $b) {
-        return ($zero, $self);
+
+    #
+    # see Euclidean.division.Wikipedia.pdf
+    #
+    # I think there are 8 cases:
+    #
+    # 1:   39   5   7   4   # 39 = 7*5 + 4
+    # 2:   39  -5  -7   4
+    # 3:  -39   5  -8   1   # 8 = 7-1, 1 = 5-4
+    # 4:  -39  -5   8   1
+    # 
+    # 5:    5  39   0   5   # 5 = 39*0 + 5
+    # 6:    5 -39   0   5
+    # 7:   -5  39  -1  34   # -5 = 39*-1 + 34  (34 = 39-5)
+    # 8:   -5 -39   1  34   # -5 = -39*1 + 34
+    #
+    my $negate_q = 0;
+    my $neg_pos = 0;
+    my $neg_neg = 0;
+    if ($self > $zero && $b < $zero) {
+        $negate_q = 1;
     }
+
+    if ($b->abs > $self->abs) {
+
+print "b > self\n";
+        if ($b->positive) {
+            return ($zero, $self);
+        }
+        if ($self->positive && $b->negative) {
+            return $one->negate, $b->negate - $self->negate;
+        }
+        if ($self->negative && $b->negative) {
+            return $one, $b->negate - $self->negate;
+        }
+    }
+
+    if ($self < $zero && $b > $zero) {
+        $neg_pos = 1;
+    }
+    if ($self < $zero && $b < $zero) {
+        $neg_neg = 1;
+    }
+
     # first - create the 1-9 multiples of $b (or absolute value of $b).
     my @multiples;
     my $c = $b->abs;
@@ -399,7 +437,7 @@ sub divide {
     OUTER:
     while (1) {
         LOOP:
-        for my $i (1 .. 10) {
+        for my $i (2 .. 10) {
             if ($multiples[$i] > $t) {
                 push @result, $i-1;
                 $t -= $multiples[$i-1];
@@ -422,7 +460,22 @@ sub divide {
             last OUTER;
         }
     }
-    return BigInteger->new(join '', @result), $t;
+    my $q = BigInteger->new(join '', @result);
+
+print "got $q and $t\n";<STDIN>;
+
+    if ($negate_q) {
+        return $q->negate, $t;
+    }
+    if ($neg_pos) {
+        $q = $q->negate->subtract($one);
+        $t = ($b - $t)->abs;
+    }
+    if ($neg_neg) {
+        $q = $q->plus($one);
+        $t = ($b->negate - $t)->abs;
+    }
+    return $q, $t;
 }
 
 1;
